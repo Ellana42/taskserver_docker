@@ -34,6 +34,35 @@ ARG TASKDDIR=/var/taskd
 ENV TASKDDATA=$TASKDDIR
 RUN mkdir -p $TASKDDATA
 RUN taskd init
+RUN mv pki $TASKDDATA
+
+# Modify var in certificate generation
+
+WORKDIR $TASKDDATA/pki
+ARG HOSTNAME=localhost
+RUN sed "s/CN=localhost/CN=$HOSTNAME/" vars
+
+RUN ./generate
+RUN cp client.cert.pem $TASKDDATA
+RUN cp client.key.pem $TASKDDATA
+RUN cp server.cert.pem $TASKDDATA
+RUN cp server.key.pem $TASKDDATA
+RUN cp server.crl.pem $TASKDDATA
+RUN cp ca.cert.pem $TASKDDATA
+
+RUN taskd config --force client.cert $TASKDDATA/client.cert.pem
+RUN taskd config --force client.key $TASKDDATA/client.key.pem
+RUN taskd config --force server.cert $TASKDDATA/server.cert.pem
+RUN taskd config --force server.key $TASKDDATA/server.key.pem
+RUN taskd config --force server.crl $TASKDDATA/server.crl.pem
+RUN taskd config --force ca.cert $TASKDDATA/ca.cert.pem
+
+WORKDIR $TASKDDATA/..
+RUN taskd config --force log $PWD/taskd.log
+RUN taskd config --force pid.file $PWD/taskd.pid
+RUN taskd config --force server localhost:53589
+
+RUN taskdctl start
 
 USER ellana
 WORKDIR /home/ellana
